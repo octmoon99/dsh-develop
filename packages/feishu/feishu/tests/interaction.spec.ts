@@ -39,7 +39,7 @@ function settings(): Mutable<FeishuSettings> {
     cardTemplates: [],
     interactionCards: {
       enabled: true,
-      approval: { approveLabel: 'Approve', rejectLabel: 'Reject' },
+      approval: { deciderOpenIds: ['ou_1', 'ou_2'], deciderUserIds: ['uu_9'], approveLabel: 'Approve', rejectLabel: 'Reject' },
       question: { title: 'Please answer', submitLabel: 'Submit' },
     },
   }
@@ -154,10 +154,15 @@ describe('interaction cards', () => {
 
   it('admits well-formed card actions and rejects the rest', () => {
     const button = parseCardAction({
-      operator: { open_id: 'ou_1' },
+      operator: { open_id: 'ou_1', user_id: 'uu_9' },
       action: { tag: 'button', value: { interactionId: 'fi-1', outcome: 'approved' } },
     })
-    expect(button).toEqual({ interactionId: 'fi-1', outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1' })
+    expect(button).toEqual({ interactionId: 'fi-1', outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: 'uu_9' })
+    const numericUserId = parseCardAction({
+      operator: { open_id: 'ou_1', user_id: 7 },
+      action: { tag: 'button', value: { interactionId: 'fi-1' } },
+    })
+    expect(numericUserId?.operatorUserId).toBeUndefined()
     const form = parseCardAction({
       operator: { open_id: 'ou_1' },
       action: { tag: 'button', value: { interactionId: 'fi-2' }, form_value: { [`${QUESTION_FIELD_PREFIX}q1`]: 'A' } },
@@ -180,6 +185,12 @@ describe('interaction cards', () => {
     expect(() => {
       assertSettings(structuredClone({ ...base, interactionCards: { ...base.interactionCards, approval: { ...base.interactionCards.approval, pendingCard: { schema: '2.0', body: {} } } } }))
     }).toThrow(/pendingCard/)
+    expect(() => {
+      assertSettings(structuredClone({ ...base, interactionCards: { ...base.interactionCards, approval: { ...base.interactionCards.approval, deciderOpenIds: [' '] } } }))
+    }).toThrow(/deciderOpenIds/)
+    expect(() => {
+      assertSettings(structuredClone({ ...base, interactionCards: { ...base.interactionCards, approval: { ...base.interactionCards.approval, deciderUserIds: [' '] } } }))
+    }).toThrow(/deciderUserIds/)
   })
 })
 
@@ -192,7 +203,7 @@ describe('InteractionBridge', () => {
     const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
     await vi.waitFor(() => { expect(sent).toHaveLength(1) })
     expect(sent[0]!.messageId).toBe('om_1')
-    const response = bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1' })
+    const response = bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: undefined })
     await expect(pending).resolves.toBe('allowed-once')
     expect((response.card as { data: { elements: { content: string }[] } }).data.elements[0]!.content).toContain('Approved')
     expect((response.card as { data: { elements: { content: string }[] } }).data.elements[0]!.content).toContain('ou_1')
@@ -205,11 +216,11 @@ describe('InteractionBridge', () => {
     bridge.setAnchor(owner.session.id, 'om_1')
     const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
     await vi.waitFor(() => { expect(sent).toHaveLength(1) })
-    bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'rejected', formValue: undefined, operatorOpenId: 'ou_2' })
+    bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'rejected', formValue: undefined, operatorOpenId: 'ou_2', operatorUserId: undefined })
     await expect(pending).resolves.toBe('rejected')
   })
 
-  it('passes unanchored, disabled, and undeliverable requests to the next answerer', async () => {
+  it('passes unanchored, disabled, deciderless, and undeliverable requests to the next answerer', async () => {
     const owner = agent()
     const delegate = () => Promise.resolve('unavailable' as ApprovalOutcome)
 
@@ -222,11 +233,61 @@ describe('InteractionBridge', () => {
     disabled.bridge.setAnchor(owner.session.id, 'om_1')
     await expect(disabled.ctx.waterfall('approval/request', approvalRequest(owner), delegate)).resolves.toBe('unavailable')
 
+    const deciderlessLive = settings()
+    deciderlessLive.interactionCards = {
+      ...deciderlessLive.interactionCards,
+      approval: { ...deciderlessLive.interactionCards.approval, deciderOpenIds: [], deciderUserIds: [] },
+    }
+    const deciderless = makeBridge(deciderlessLive)
+    deciderless.bridge.mountAnswerers(deciderless.ctx, owner)
+    deciderless.bridge.setAnchor(owner.session.id, 'om_1')
+    const pending = deciderless.ctx.waterfall('approval/request', approvalRequest(owner), delegate)
+    await expect(pending).resolves.toBe('unavailable')
+    expect(deciderless.sent).toHaveLength(0)
+
     const failingCtx = new Context()
     const failing = new InteractionBridge(failingCtx, () => settings(), () => Promise.reject(new Error('edge down')))
     failing.mountAnswerers(failingCtx, owner)
     failing.setAnchor(owner.session.id, 'om_1')
     await expect(failingCtx.waterfall('approval/request', approvalRequest(owner), delegate)).resolves.toBe('unavailable')
+  })
+
+  it('keeps a pending approval claimable through malformed and unqualified clicks', async () => {
+    const { bridge, ctx, sent } = makeBridge(settings())
+    const owner = agent()
+    bridge.mountAnswerers(ctx, owner)
+    bridge.setAnchor(owner.session.id, 'om_1')
+    const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
+    await vi.waitFor(() => { expect(sent).toHaveLength(1) })
+    const interactionId = interactionOfButtons(sent[0]!.card)
+    const verdictless: CardActionResponse = bridge.dispatch({ interactionId, outcome: undefined, formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: 'uu_9' })
+    expect(verdictless.toast?.type).toBe('error')
+    expect(verdictless.card).toBeUndefined()
+    const stranger: CardActionResponse = bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_stranger', operatorUserId: 'uu_stranger' })
+    expect(stranger.toast?.type).toBe('error')
+    expect(stranger.card).toBeUndefined()
+    const anonymous: CardActionResponse = bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: undefined, operatorUserId: undefined })
+    expect(anonymous.toast?.type).toBe('error')
+    expect(anonymous.card).toBeUndefined()
+    const response = bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_2', operatorUserId: undefined })
+    await expect(pending).resolves.toBe('allowed-once')
+    expect((response.card as { data: { elements: { content: string }[] } }).data.elements[0]!.content).toContain('Approved')
+  })
+
+  it('settles an approval click qualified by the user-id decider list alone', async () => {
+    const { bridge, ctx, sent } = makeBridge(settings())
+    const owner = agent()
+    bridge.mountAnswerers(ctx, owner)
+    bridge.setAnchor(owner.session.id, 'om_1')
+    const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
+    await vi.waitFor(() => { expect(sent).toHaveLength(1) })
+    const interactionId = interactionOfButtons(sent[0]!.card)
+    const unlistedUser: CardActionResponse = bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_stranger', operatorUserId: 'uu_stranger' })
+    expect(unlistedUser.toast?.type).toBe('error')
+    expect(unlistedUser.card).toBeUndefined()
+    const response: CardActionResponse = bridge.dispatch({ interactionId, outcome: 'rejected', formValue: undefined, operatorOpenId: 'ou_stranger', operatorUserId: 'uu_9' })
+    await expect(pending).resolves.toBe('rejected')
+    expect((response.card as { data: { elements: { content: string }[] } }).data.elements[0]!.content).toContain('Rejected')
   })
 
   it('answers a question form with structured answers and a summary card', async () => {
@@ -248,6 +309,7 @@ describe('InteractionBridge', () => {
       outcome: undefined,
       formValue: { [`${QUESTION_FIELD_PREFIX}q1`]: 'A', [`${QUESTION_FIELD_PREFIX}q2`]: ['X', 'Y'], [`${QUESTION_FIELD_PREFIX}q3`]: 'hello' },
       operatorOpenId: 'ou_1',
+      operatorUserId: undefined,
     })
     const answer: AskUserQuestionAnswer = await pending
     expect(answer.answers).toEqual([
@@ -263,7 +325,7 @@ describe('InteractionBridge', () => {
 
   it('answers stale and malformed clicks without failing the callback', () => {
     const { bridge } = makeBridge(settings())
-    const stale: CardActionResponse = bridge.dispatch({ interactionId: 'fi-gone', outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1' })
+    const stale: CardActionResponse = bridge.dispatch({ interactionId: 'fi-gone', outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: undefined })
     expect(stale.toast?.type).toBe('info')
     expect(stale.card).toBeUndefined()
     const malformed: CardActionResponse = bridge.dispatch({
@@ -271,6 +333,7 @@ describe('InteractionBridge', () => {
       outcome: undefined,
       formValue: undefined,
       operatorOpenId: undefined,
+      operatorUserId: undefined,
     })
     expect(malformed.card).toBeUndefined()
   })
@@ -290,7 +353,7 @@ describe('InteractionBridge', () => {
     const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
     await vi.waitFor(() => { expect(sent).toHaveLength(1) })
     expect(stole).toHaveLength(0)
-    bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1' })
+    bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: undefined })
     await expect(pending).resolves.toBe('allowed-once')
   })
 
@@ -305,7 +368,7 @@ describe('InteractionBridge', () => {
     const interactionId = interactionOfButtons(sent[0]!.card)
     controller.abort()
     await expect(pending).resolves.toBe('cancelled')
-    expect(bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1' }).card).toBeUndefined()
+    expect(bridge.dispatch({ interactionId, outcome: 'approved', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: undefined }).card).toBeUndefined()
   })
 
   it('updates settled cards through the configured platform template', async () => {
@@ -317,7 +380,7 @@ describe('InteractionBridge', () => {
     bridge.setAnchor(owner.session.id, 'om_1')
     const pending = ctx.waterfall('approval/request', approvalRequest(owner), () => Promise.resolve('unavailable' as ApprovalOutcome))
     await vi.waitFor(() => { expect(sent).toHaveLength(1) })
-    const response = bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'rejected', formValue: undefined, operatorOpenId: 'ou_1' })
+    const response = bridge.dispatch({ interactionId: interactionOfButtons(sent[0]!.card), outcome: 'rejected', formValue: undefined, operatorOpenId: 'ou_1', operatorUserId: undefined })
     await expect(pending).resolves.toBe('rejected')
     expect(response.card).toEqual({ type: 'template', data: { template_id: 'AAq9', template_variable: { outcome: 'rejected', decidedBy: 'ou_1' } } })
   })

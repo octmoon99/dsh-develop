@@ -41,7 +41,7 @@ function settings(): Mutable<FeishuSettings> {
     dedupCapacity: 64,
     interactionCards: {
       enabled: false,
-      approval: { approveLabel: 'Approve', rejectLabel: 'Reject' },
+      approval: { deciderOpenIds: [], deciderUserIds: [], approveLabel: 'Approve', rejectLabel: 'Reject' },
       question: { title: 'Please answer', submitLabel: 'Submit' },
     },
   }

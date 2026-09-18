@@ -70,6 +70,21 @@ export interface FeishuSettings {
 
 /** Style knobs of the interactive approval confirm cards. */
 export interface ApprovalCardsSettings {
+  /**
+   * Open ids allowed to decide an approval card, matched against the
+   * callback operator's `open_id`. A click matching neither decider list
+   * answers with an error toast and leaves the pending interaction
+   * claimable. Both lists empty (default) admit no decider, so approval
+   * requests pass to other channels.
+   */
+  readonly deciderOpenIds: string[]
+  /**
+   * User ids allowed to decide an approval card, matched against the
+   * callback operator's `user_id`. Whether the platform delivers that field
+   * depends on the app's granted scope; its absence leaves the click to the
+   * open-id list, and this list alone still admits deciders when populated.
+   */
+  readonly deciderUserIds: string[]
   /** Local card JSON 1.0 frame carrying `{{toolName}}`/`{{reason}}` placeholders; the button row is appended. */
   readonly pendingCard?: unknown
   /** Local card JSON 1.0 frame carrying `{{outcome}}`/`{{decidedBy}}` placeholders for the callback refresh. */
@@ -132,6 +147,8 @@ const cardTemplate: z<CardTemplateEntry> = z.object({
 })
 
 const approvalCards: z<ApprovalCardsSettings> = z.object({
+  deciderOpenIds: z.array(z.string()).default([]),
+  deciderUserIds: z.array(z.string()).default([]),
   pendingCard: z.any(),
   settledCard: z.any(),
   settledTemplateId: z.string(),
@@ -148,7 +165,7 @@ const questionCards: z<QuestionCardsSettings> = z.object({
 
 const interactionCards: z<InteractionCardsSettings> = z.object({
   enabled: z.boolean().default(false),
-  approval: approvalCards.default({ approveLabel: 'Approve', rejectLabel: 'Reject' }),
+  approval: approvalCards.default({ deciderOpenIds: [], deciderUserIds: [], approveLabel: 'Approve', rejectLabel: 'Reject' }),
   question: questionCards.default({ title: 'Please answer', submitLabel: 'Submit' }),
 })
 
@@ -277,6 +294,12 @@ export function assertSettings(value: FeishuSettings): void {
   const cards = value.interactionCards
   if (cards.approval.approveLabel.trim() === '' || cards.approval.rejectLabel.trim() === '') {
     throw new Error('feishu interactionCards approval labels must be non-empty')
+  }
+  if (cards.approval.deciderOpenIds.some(id => id.trim() !== id || id === '')) {
+    throw new Error('feishu interactionCards approval deciderOpenIds entries must be non-empty trimmed strings')
+  }
+  if (cards.approval.deciderUserIds.some(id => id.trim() !== id || id === '')) {
+    throw new Error('feishu interactionCards approval deciderUserIds entries must be non-empty trimmed strings')
   }
   if (cards.question.title.trim() === '' || cards.question.submitLabel.trim() === '') {
     throw new Error('feishu interactionCards question title and submit label must be non-empty')

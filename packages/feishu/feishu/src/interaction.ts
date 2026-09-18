@@ -2,9 +2,13 @@
  * Interactive-card bridge: answers in-turn approval and user-question
  * waterfalls with Feishu cards, matches card-action callbacks back to the
  * pending interaction they resolve, and updates the card in the callback
- * response. Callbacks must settle within Feishu's three-second response
- * window, so resolution only unblocks the waterfall; the agent's continued
- * turn runs asynchronously.
+ * response. A callback settles its pending interaction only after full
+ * validation: an approval click must carry a verdict and come from an
+ * operator whose open id or user id a configured decider list names, so a
+ * malformed or unqualified click leaves the pending claimable by a later
+ * one. Callbacks must settle within Feishu's three-second response window,
+ * so resolution only unblocks the waterfall; the agent's continued turn
+ * runs asynchronously.
  * @module @deepseek-ai/dsh-feishu/interaction
  */
 
@@ -38,6 +42,8 @@ export interface CardAction {
   readonly formValue: Readonly<Record<string, unknown>> | undefined
   /** Acting operator's open id. */
   readonly operatorOpenId: string | undefined
+  /** Acting operator's user id; delivered only when the app's scope grants it. */
+  readonly operatorUserId: string | undefined
 }
 
 /**
@@ -65,11 +71,15 @@ export function parseCardAction(body: unknown): CardAction | undefined {
   const operatorOpenId = operator !== null && typeof operator === 'object'
     ? (operator as { open_id?: unknown }).open_id
     : undefined
+  const operatorUserId = operator !== null && typeof operator === 'object'
+    ? (operator as { user_id?: unknown }).user_id
+    : undefined
   return {
     interactionId,
     outcome: outcome === 'approved' || outcome === 'rejected' ? outcome : undefined,
     formValue: formValue === undefined ? undefined : { ...(formValue as Record<string, unknown>) },
     operatorOpenId: operatorOpenId === undefined || typeof operatorOpenId !== 'string' ? undefined : operatorOpenId,
+    operatorUserId: operatorUserId === undefined || typeof operatorUserId !== 'string' ? undefined : operatorUserId,
   }
 }
 
@@ -173,6 +183,9 @@ export class InteractionBridge {
     if (!cards.enabled) return next()
     const anchor = this.anchors.get(agent.session.id)
     if (anchor === undefined) return next()
+    // With no configured deciders no click has a trusted decision-maker, so
+    // the card is never sent and the request passes to other channels.
+    if (cards.approval.deciderOpenIds.length === 0 && cards.approval.deciderUserIds.length === 0) return next()
     const interaction = brandString<InteractionId>(`fi-${randomUUID()}`)
     const card = buildApprovalCard(interaction, req.toolName, req.reason, {
       ...cards.approval.pendingCard === undefined ? {} : { card: cards.approval.pendingCard },
@@ -237,8 +250,11 @@ export class InteractionBridge {
   }
 
   /**
-   * Resolve one admitted card-action callback: settle the pending
-   * interaction it matches and produce the response that refreshes the card.
+   * Resolve one admitted card-action callback: validate that the click can
+   * decide its pending interaction, and only then settle it and produce the
+   * response that refreshes the card. An approval click without a verdict, or
+   * from an operator outside the configured deciders, answers with an error
+   * toast and leaves the pending interaction for a later valid click.
    * @param action - the validated callback action.
    * @returns the callback response body; malformed or unknown interactions
    * still answer successfully so Feishu does not retry a stale click.
@@ -247,13 +263,19 @@ export class InteractionBridge {
     if (action.interactionId === undefined) return this.staleResponse()
     const pending = this.pendings.get(action.interactionId)
     if (pending === undefined) return this.staleResponse()
-    this.pendings.delete(action.interactionId)
     if (pending.kind === 'approval') {
-      if (action.outcome === undefined) return this.staleResponse()
+      if (action.outcome === undefined) {
+        return this.refusedResponse('This approval action carried no decision.')
+      }
+      if (!this.isDecider(action)) {
+        return this.refusedResponse('You are not allowed to decide this approval.')
+      }
+      this.pendings.delete(action.interactionId)
       const outcome: ApprovalOutcome = action.outcome === 'approved' ? 'allowed-once' : 'rejected'
       pending.settle(outcome)
       return this.settledResponse(outcome, action.operatorOpenId, undefined, 'approval')
     }
+    this.pendings.delete(action.interactionId)
     const answers = answersOf(pending.questions, action.formValue ?? {})
     pending.settle(answers)
     return this.settledResponse('answered', action.operatorOpenId, summarize(answers, pending.questions), 'question')
@@ -262,6 +284,25 @@ export class InteractionBridge {
   /** Response for a click nothing pending can match: a toast, leaving the card unchanged. */
   private staleResponse(): CardActionResponse {
     return { toast: { type: 'info', content: 'This interaction has already been settled.' } }
+  }
+
+  /**
+   * Whether one click's operator matches an entry of a configured decider
+   * list, comparing the operator's open id against `deciderOpenIds` and its
+   * user id against `deciderUserIds`; a click carrying neither identity
+   * qualifies for none.
+   * @param action - the validated callback action.
+   * @returns whether the operator may decide a pending approval.
+   */
+  private isDecider(action: CardAction): boolean {
+    const approval = this.settings().interactionCards.approval
+    return (action.operatorOpenId !== undefined && approval.deciderOpenIds.includes(action.operatorOpenId))
+      || (action.operatorUserId !== undefined && approval.deciderUserIds.includes(action.operatorUserId))
+  }
+
+  /** Response for a click that cannot decide its pending interaction: an error toast, leaving the card unchanged. */
+  private refusedResponse(content: string): CardActionResponse {
+    return { toast: { type: 'error', content } }
   }
 
   /** Build the settled card response under the configured style. */

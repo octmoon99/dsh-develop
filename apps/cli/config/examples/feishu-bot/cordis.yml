@@ -14,6 +14,14 @@
         replyInThread: true
         interactionCards:
           enabled: true
+          approval:
+            # Approval cards settle only clicks from these ids; with both
+            # lists empty, approval requests pass to other channels and only
+            # question cards stay interactive. The user-id list matches the
+            # callback operator's user_id, delivered only when the app's
+            # scope grants it.
+            deciderOpenIds: !!js (process.env.DSH_FEISHU_DECIDERS ?? '').split(',').map(v => v.trim()).filter(Boolean)
+            deciderUserIds: !!js (process.env.DSH_FEISHU_DECIDER_USERS ?? '').split(',').map(v => v.trim()).filter(Boolean)
 
 # Webhook transport alternative: mount a dedicated isolated WebServer so the
 # public ingress never exposes the UI API, then switch the section's transport

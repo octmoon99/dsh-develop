@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-feishu` 把飞书机器人变成 DSH 的前置入口。每个飞书会话的主消息流与各话题线程映射到各自的多轮根 Session；每条获准的消息成为一轮普通 follow-up；轮次完成后会话日志中的助手文本经飞书 API 以纯文本或单张 markdown 卡片回发。两条互斥传输边承载事件——无需公网地址的外拨 WSS 长连接，以及挂在可选组合的 `dsh-host-webserver` 上的入站 webhook 路由——`feishu` 设置段变更时活动边热切换。交互卡片应答回合内的审批与用户提问请求：确认按钮解决审批瀑布，生成的表单解决 `ask_user_question`，回调响应本身把卡片刷新为结算样式。
+`dsh-feishu` 把飞书机器人变成 DSH 的前置入口。每个会话的主消息流与各话题线程映射到各自的多轮根 Session；每条获准的消息成为一轮 follow-up，轮次完成后的助手文本以纯文本或单张 markdown 卡片回发。两条传输边承载事件——无需公网地址的外拨 WSS 长连接，以及挂在可选组合的 `dsh-host-webserver` 上的入站 webhook 路由——`feishu` 设置段变更时热切换。交互卡片应答回合内的审批与提问请求，回调响应把卡片刷新为结算样式。
 
 ## 目录
 
@@ -41,7 +41,7 @@ kind: "package-reference"
 | `replyCharLimit` / `failureNotice` | 回复截断上限（默认 4000，两种形式共用）与失败回复文案。 |
 | `dedupCapacity` | 重试去重所记住的消息标识数（默认 1024）。 |
 | `cardLocale` | 模板卡片为搭建工具多语言导出时，提升为 `elements`/`header` 的语种键（默认 `zh_cn`）。 |
-| `interactionCards` | 交互式审批/提问卡片：`enabled`（默认 `false`）；审批 `pendingCard`（本地卡片 JSON 1.0 框架，含 `{{toolName}}`/`{{reason}}`，按钮行自动追加）与 `approveLabel`/`rejectLabel`；提问 `title`/`submitLabel`；各类型的结算样式——本地 `settledCard` 框架（`{{outcome}}`/`{{decidedBy}}`/`{{summary}}`）或平台 `settledTemplateId` 恰取其一。卡片回调随控制台的回调订阅方式而定：长连接模式走 websocket 边，请求地址模式需组合 WebServer 的 `<path>/card` 路由。 |
+| `interactionCards` | 交互式审批/提问卡片：`enabled`（默认 `false`）；审批 `deciderOpenIds`/`deciderUserIds`（两个并列允许列表，分别匹配回调操作者的 `open_id`/`user_id`，任一命中即有资格；默认均为空时审批请求交给其他通道）、审批 `pendingCard`（本地卡片 JSON 1.0 框架，含 `{{toolName}}`/`{{reason}}`，按钮行自动追加）与 `approveLabel`/`rejectLabel`；提问 `title`/`submitLabel`；各类型的结算样式——本地 `settledCard` 框架（`{{outcome}}`/`{{decidedBy}}`/`{{summary}}`）或平台 `settledTemplateId` 恰取其一。卡片回调随控制台的回调订阅方式而定：长连接模式走 websocket 边，请求地址模式需组合 WebServer 的 `<path>/card` 路由。 |
 | `cardTemplates` | 绑定工具轮次的卡片模板注册表：名称、`bindTool`（可加 `workflowName` 过滤）、平台 `templateId` 或含 `{{变量}}` 占位符的本地 `card` 二选一，及逐变量提取规则（`context` 键或 `tool-result` 点路径、`required`、`maxLength`）。本地卡片接受规范卡片 JSON 1.0 或搭建工具的多语言导出（`i18n_elements`/`i18n_header`，按 `cardLocale` 提升）；卡片 JSON 2.0 按名拒绝，直至 `'v2'` 方言落地。 |
 | `workspacePath` / `agentPreset` / `permissionPreset` | 仅部署层：会话的工作区、agent 组合与沙箱/审批预设。绝不可经设置修改。 |
 
@@ -58,7 +58,7 @@ kind: "package-reference"
 
 当轮次的工具调用需要审批、或模型调用 `ask_user_question` 时，桥接器（挂在每个聊天 agent 的作用域世界上）用一张回复到该轮锚点消息的卡片应答：审批是两个按钮，其 value 携带交互身份；提问是一张生成的表单——带选项的题目投影为下拉选择（允许多选时为多选框），无选项题目投影为文本输入框。回调按飞书控制台卡片回调订阅方式选择的入口到达——长连接模式把 `card.action.trigger` 作为一条普通事件帧送进 websocket 边（handler 的返回值由 SDK 中继为回调响应），请求地址模式 POST 到 `<path>/card` 路由（经 SDK 卡片处理器验签）。两个入口都把回传身份匹配回挂起交互、同步解决瀑布（飞书要求三秒内响应；agent 的后续回合异步继续），并在回调响应里就地刷新卡片：结算卡以本地 JSON 1.0 文档或平台模板替换挂起卡。未组合 WebServer 时仅服务长连接模式，跳过会记日志。
 
-卡片只认领本通道正在服务的轮次：有锚点的轮次用卡片应答，其他通道驱动的轮次经 `next()` 透传，Web UI 继续应答自己的会话。请求中止按 cancelled 结算；其卡片无从刷新，迟到的点击收到已结算的 toast。事件订阅与卡片回调订阅方式在控制台里各自独立配置：长连接消息传输自然搭配长连接卡片回调；请求地址卡片回调与任一种消息传输均可并存。
+卡片只认领本通道正在服务的轮次：有锚点的轮次用卡片应答，其他通道驱动的轮次经 `next()` 透传，Web UI 继续应答自己的会话。审批卡只结算携带决议、且操作者命中所配 `deciderOpenIds`（按 `open_id`）或 `deciderUserIds`（按 `user_id`，仅在应用权限范围授予时随回调送达）的点击：畸形或无资格的点击收到错误 toast，挂起交互仍可被后续有效点击结算；两个决策人列表均为空时桥接器不认领任何审批请求——提问表单仍由聊天成员作答。请求中止按 cancelled 结算；其卡片无从刷新，迟到的点击收到已结算的 toast。事件订阅与卡片回调订阅方式在控制台里各自独立配置：长连接消息传输自然搭配长连接卡片回调；请求地址卡片回调与任一种消息传输均可并存。
 
 <a id="service-api"></a>
 ## 服务 API
