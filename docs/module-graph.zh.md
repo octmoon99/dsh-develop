@@ -87,6 +87,11 @@ flowchart TD
     pkg_web_search_exa["web-search-exa"]
     pkg_web_search_perplexity["web-search-perplexity"]
   end
+  subgraph group_integration["packages/integration"]
+    pkg_integration_alarm["integration-alarm"]
+    pkg_integration_alarm_http["integration-alarm-http"]
+    pkg_tool_integration_alarm["tool-integration-alarm"]
+  end
   subgraph group_spill["packages/spill"]
     pkg_spill["spill"]
     pkg_spill_local["spill-local"]
@@ -382,6 +387,7 @@ flowchart TD
   end
   pkg_scope --> pkg_invariants
   pkg_web --> pkg_llm
+  pkg_integration_alarm --> pkg_llm
   pkg_attachment --> pkg_brand
   pkg_credentials --> pkg_invariants
   pkg_e2b --> pkg_http_proxy
@@ -423,6 +429,9 @@ flowchart TD
   pkg_web_search_exa --> pkg_web
   pkg_web_search_perplexity --> pkg_launch_environment
   pkg_web_search_perplexity --> pkg_web
+  pkg_integration_alarm_http --> pkg_credentials
+  pkg_integration_alarm_http --> pkg_integration_alarm
+  pkg_integration_alarm_http --> pkg_launch_environment
   pkg_api_remotes --> pkg_scope
   pkg_attachment_local --> pkg_attachment
   pkg_attachment_local --> pkg_home_paths
@@ -760,6 +769,10 @@ flowchart TD
   pkg_tool_web --> pkg_system_prompt
   pkg_tool_web --> pkg_tools
   pkg_tool_web --> pkg_web
+  pkg_tool_integration_alarm --> pkg_integration_alarm
+  pkg_tool_integration_alarm --> pkg_system_prompt
+  pkg_tool_integration_alarm --> pkg_tools
+  pkg_tool_integration_alarm --> pkg_util_values
   pkg_spill_policy --> pkg_llm
   pkg_spill_policy --> pkg_output_retention
   pkg_spill_policy --> pkg_session
@@ -1308,6 +1321,7 @@ flowchart TD
 | [`typert-registry`](../packages/typert/registry) | `typert` | — |
 | [`scope`](../packages/core/scope) | `core` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`web`](../packages/web/web) | `web` | [`llm`](../packages/llm/llm) |
+| [`integration-alarm`](../packages/integration/integration-alarm) | `integration` | [`llm`](../packages/llm/llm) |
 | [`attachment`](../packages/attachment/attachment) | `attachment` | [`brand`](../packages/util/brand) |
 | [`credentials`](../packages/credentials/credentials) | `credentials` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`e2b`](../packages/e2b/e2b) | `e2b` | [`http-proxy`](../packages/util/http-proxy) |
@@ -1329,6 +1343,7 @@ flowchart TD
 | [`web-fetch-http`](../packages/web/web-fetch-http) | `web` | [`http-proxy`](../packages/util/http-proxy), [`timeout`](../packages/util/timeout), [`web`](../packages/web/web) |
 | [`web-search-exa`](../packages/web/web-search-exa) | `web` | [`launch-environment`](../packages/util/launch-environment), [`web`](../packages/web/web) |
 | [`web-search-perplexity`](../packages/web/web-search-perplexity) | `web` | [`launch-environment`](../packages/util/launch-environment), [`web`](../packages/web/web) |
+| [`integration-alarm-http`](../packages/integration/integration-alarm-http) | `integration` | [`credentials`](../packages/credentials/credentials), [`integration-alarm`](../packages/integration/integration-alarm), [`launch-environment`](../packages/util/launch-environment) |
 | [`api-remotes`](../packages/api/remotes) | `api` | [`scope`](../packages/core/scope) |
 | [`attachment-local`](../packages/attachment/attachment-local) | `attachment` | [`attachment`](../packages/attachment/attachment), [`home-paths`](../packages/util/home-paths) |
 | [`client-file-upload`](../packages/client/file-upload) | `client` | [`scope`](../packages/core/scope) |
@@ -1411,6 +1426,7 @@ flowchart TD
 | [`tool-str-replace-editor`](../packages/fs/tool-str-replace-editor) | `fs` | [`fs`](../packages/fs/fs), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`tools`](../packages/core/tools) |
 | [`tool-skill`](../packages/skill/tool-skill) | `skill` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`skill`](../packages/skill/skill), [`tools`](../packages/core/tools) |
 | [`tool-web`](../packages/web/tool-web) | `web` | [`llm`](../packages/llm/llm), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`web`](../packages/web/web) |
+| [`tool-integration-alarm`](../packages/integration/tool-integration-alarm) | `integration` | [`integration-alarm`](../packages/integration/integration-alarm), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`util-values`](../packages/util/values) |
 | [`spill-policy`](../packages/spill/spill-policy) | `spill` | [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`session`](../packages/core/session), [`spill`](../packages/spill/spill), [`tools`](../packages/core/tools) |
 | [`tool-todo`](../packages/todo/tool-todo) | `todo` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools) |
 | [`plan-mode`](../packages/plan/plan-mode) | `plan` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |

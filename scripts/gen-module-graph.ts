@@ -28,6 +28,7 @@ const GROUP_ORDER = [
   'compact',
   'subagent',
   'web',
+  'integration',
   'spill',
   'timeout',
   'todo',

@@ -197,6 +197,10 @@ flowchart LR
   pkg_web_search_perplexity["web-search-perplexity"]
   pkg_web_search_deepseek["web-search-deepseek"]
   pkg_web_fetch_http["web-fetch-http"]
+  pkg_integration_alarm["integration-alarm"]
+  svc_alarmQuery["ctx.alarmQuery<br/>Alarm query provider registry"]
+  pkg_integration_alarm_http["integration-alarm-http"]
+  pkg_tool_integration_alarm["tool-integration-alarm"]
   pkg_spill["spill"]
   svc_spillStore["ctx.spillStore<br/>Spill storage seam"]
   pkg_spill_local["spill-local"]
@@ -271,6 +275,8 @@ flowchart LR
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_webserver --> svc_webServer
   pkg_inspector --> svc_inspector
+  pkg_integration_alarm --> svc_alarmQuery
+  pkg_integration_alarm_http --> svc_alarmQuery
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
@@ -352,6 +358,7 @@ flowchart LR
   svc_agents --> pkg_acp
   svc_agents --> pkg_agent_loop
   svc_agents --> pkg_subagent_in_process_driver
+  svc_alarmQuery --> pkg_tool_integration_alarm
   svc_approval --> pkg_acp
   svc_approval --> pkg_tool_bash
   svc_approval --> pkg_tools
@@ -537,6 +544,7 @@ flowchart LR
 | `ctx.inspector` | `core` | `inspector` | - | - | - | Owns the Worker-hosted CDP target and the transport-independent Host and Client observation and Cordis-tree query API. |
 | `ctx.jobs` | `seam` | [`jobs`](../packages/jobs/jobs) | [`jobs-local`](../packages/jobs/jobs-local) | [`tool-bash`](../packages/shell/tool-bash), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-jobs`](../packages/jobs/tool-jobs) | - | Producers (background bash, PTY sends, and subagent delegations) register running work; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry. |
 | `ctx.web` | `seam` | [`web`](../packages/web/web) | [`web-search-exa`](../packages/web/web-search-exa), [`web-search-perplexity`](../packages/web/web-search-perplexity), [`web-search-deepseek`](../packages/web/web-search-deepseek), [`web-fetch-http`](../packages/web/web-fetch-http) | [`tool-web`](../packages/web/tool-web) | - | Search and fetch providers register into one ctx.web seam; tool-web owns the stable model-facing names. |
+| `ctx.alarmQuery` | `seam` | [`integration-alarm`](../packages/integration/integration-alarm) | [`integration-alarm-http`](../packages/integration/integration-alarm-http) | [`tool-integration-alarm`](../packages/integration/tool-integration-alarm) | - | Alarm providers register into one ctx.alarmQuery seam; tool-integration-alarm owns the stable model-facing name. |
 | `ctx.spillStore` | `seam` | [`spill`](../packages/spill/spill) | [`spill-local`](../packages/spill/spill-local) | [`spill-policy`](../packages/spill/spill-policy) | - | The backend saves oversized tool text and returns a model-facing locator plus retrieval hint; spill-policy is the tools/post-execute consumer that decides when to spill. |
 | `ctx.directoryPicker` | `seam` | [`host-directory-picker`](../packages/host/directory-picker) | [`host-directory-picker-native`](../packages/host/directory-picker-native), [`host-directory-picker-browse`](../packages/host/directory-picker-browse) | [`api-workspace-controller`](../packages/api/workspace-controller) | - | Discriminated interaction capability: the native backend opens one OS chooser on the host display, the browse backend serves listing/creation primitives for the in-app browser; dual-face backends fill ui-workspace directory-flow slots from their browser halves (no wire advertisement). |
 | `ctx.webServer` | `core` | [`host-webserver`](../packages/host/webserver) | - | [`client-connection`](../packages/client/connection), [`client-modules`](../packages/client/modules), [`client-hmr`](../packages/client/hmr) | - | Plain node:http carrier: named-route registry, index transform taps, and the static dist fallback; web-transport plugins register their own routes. |

@@ -1,0 +1,78 @@
+# Complete Feishu + alarm query composition example: the feishu bot, the alarm
+# seam with its HTTP provider, the alarm_query tool, and one Feishu card
+# template bound to the tool's results. Unlike a patch layer, this file is a
+# full starting composition: merge it with your instance's real settings
+# (chat allowlists, permission presets, existing card templates, credentials)
+# instead of pasting it over a deployed config — a patch layer replaces a
+# row's whole config value, so anything not restated here would be dropped.
+#
+# Credentials this composition resolves: DSH_FEISHU_APP_ID /
+# DSH_FEISHU_APP_SECRET (feishu app), DSH_FEISHU_DECIDERS /
+# DSH_FEISHU_DECIDER_USERS (approval deciders), DSH_ALARM_BASE_URL /
+# DSH_ALARM_API_TOKEN (alarm system; default auth mode is bearer and fails
+# loud when no token resolves).
+#
+#   pnpm dsh --profile <profile> --patch apps/cli/config/examples/alarm-query-feishu/cordis.yml
+#
+# The cardTemplates list is the per-card home: one card is exactly one entry
+# (name, bindTool, card, variables) whose variables read the alarm_query tool
+# result's presentation meta. The single `alarms` variable binds the meta's
+# `markdown`, which itself states the empty outcome, the shown-of-total
+# count, and the cut notice — the card can never show a bare list that reads
+# as the complete result. maxLength keeps a giant result from bloating the
+# card — an over-long value rules the template out and the plain markdown
+# reply stands.
+
+- id: feishu-bot
+  name: '@deepseek-ai/dsh-feishu'
+  config:
+    transport: websocket
+    domain: feishu
+    workspacePath: !!js process.env.DSH_FEISHU_WORKSPACE ?? process.cwd()
+    agentPreset: standard
+    permissionPreset: workspace-write
+    replyInThread: true
+    interactionCards:
+      enabled: true
+      approval:
+        deciderOpenIds: !!js (process.env.DSH_FEISHU_DECIDERS ?? '').split(',').map(v => v.trim()).filter(Boolean)
+        deciderUserIds: !!js (process.env.DSH_FEISHU_DECIDER_USERS ?? '').split(',').map(v => v.trim()).filter(Boolean)
+    cardTemplates:
+      - name: alarm-list
+        bindTool: alarm_query
+        card:
+          config:
+            wide_screen_mode: true
+          header:
+            template: red
+            title:
+              tag: plain_text
+              content: '告警查询结果'
+          elements:
+            - tag: markdown
+              content: '{{alarms}}'
+        variables:
+          alarms:
+            from: tool-result
+            path: markdown
+            required: true
+            maxLength: 4000
+
+- insert:
+    - id: alarm
+      name: '@deepseek-ai/dsh-integration-alarm'
+    - id: alarm-http
+      name: '@deepseek-ai/dsh-integration-alarm-http'
+      config:
+        baseUrl: !!js process.env.DSH_ALARM_BASE_URL ?? 'http://127.0.0.1:8080'
+        tokenEnv: DSH_ALARM_API_TOKEN
+        timeoutMs: 10000
+        maxResponseBytes: 1048576
+        retries: 2
+        retryBaseDelayMs: 400
+    - id: alarm-tool
+      name: '@deepseek-ai/dsh-tool-integration-alarm'
+      config:
+        maxAlarms: 20
+        timeoutMs: 30000
+        maxDetailChars: 2000

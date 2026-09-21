@@ -61,6 +61,8 @@ import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
 import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
+import * as ToolIntegrationAlarm from '@deepseek-ai/dsh-tool-integration-alarm'
+import AlarmQueryRuntime from '@deepseek-ai/dsh-integration-alarm'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
@@ -557,6 +559,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
       'All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-integration-alarm',
+    dir: 'tool-integration-alarm',
+    source: 'packages/integration/tool-integration-alarm/src/index.ts',
+    requires: ['ctx.tools', 'ctx.alarmQuery', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result with presentation meta'],
+    async mount(ctx) {
+      // Mount the seam (with one registered provider, so the tool's inject
+      // resolves) and the prompt registry the guidance section registers on.
+      await ctx.plugin(AlarmQueryRuntime)
+      await ctx.plugin(ToolIntegrationAlarm)
+    },
+    note:
+      'alarm_query is a read-only filter query over the alarm seam; the deployment owns the result bound (`maxAlarms`, default 20, 1-100) and the model never sizes its own results. Presentation meta carries the structured alarms and a display-ready markdown list; over 30,000 serialized characters it degrades to `{}` so replay and transport cards fall back to the raw result content.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-todo',

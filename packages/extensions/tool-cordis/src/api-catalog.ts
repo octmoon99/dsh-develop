@@ -436,6 +436,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'alarmQuery',
+    summary: 'The alarm query service, registered as `ctx.alarmQuery` (one instance per context).',
+    description: 'The alarm query service, registered as `ctx.alarmQuery` (one instance per context).\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `ALARM_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `ALARM_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one registered usable provider → that provider.\n- No id configured, multiple usable providers → `ALARM_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `ALARM_PROVIDER_UNAVAILABLE`.',
+    methods: [
+      {
+        signature: 'registerAlarmProvider(provider: AlarmQueryProvider): () => void',
+        description: 'Register an alarm provider. Throws AlarmError `ALARM_PROVIDER_DUPLICATE` if its id is already registered. Returns a disposer; disposed with the calling fiber.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters the provider.',
+      },
+      {
+        signature: 'resolve(request: AlarmQueryRequest): AlarmQuerySpec',
+        description: 'The explicit defaulting step between callers and providers: apply the seam\'s own defaults to one request and yield a total AlarmQuerySpec. The only seam default is `maxAlarms`; absent filters pass through absent so providers can omit them upstream.',
+        parameters: [{ name: 'request', description: 'the caller\'s query request.' }],
+        returns: 'the resolved query spec.',
+      },
+      {
+        signature: 'async query(request: AlarmQueryRequest, signal?: AbortSignal): Promise<AlarmQueryResult>',
+        description: 'Run one resolved query through the selected provider. Resolves the provider at call time with the selection rules above, then enforces `spec.maxAlarms` on the result: if the provider over-returns, `alarms[]` is truncated and `truncated` set.',
+        parameters: [{ name: 'request', description: 'the caller\'s query request; defaulted through {@link resolve}.' }, { name: 'signal', description: 'optional cancellation signal forwarded to the provider.' }],
+        returns: 'the query outcome, capped to the spec\'s `maxAlarms`.',
+      },
+    ],
+  },
+  {
     key: 'approval',
     summary: 'Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session.',
     description: 'Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. It exposes deterministic policy changes to the model through the runtime-context snapshot and switch notices.',
@@ -3637,6 +3662,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentStatus',
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
+  },
+  {
+    name: 'Alarm',
+    declaration: 'export interface Alarm {\n    readonly id: string;\n    readonly title: string;\n    readonly severity: AlarmSeverity;\n    readonly status: AlarmStatus;\n    readonly source?: string;\n    readonly firedAt: string;\n    readonly acknowledgedAt?: string;\n    readonly resolvedAt?: string;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'AlarmQueryProvider',
+    declaration: 'export interface AlarmQueryProvider {\n    readonly id: string;\n    available(): boolean;\n    query(spec: AlarmQuerySpec, signal?: AbortSignal): Promise<AlarmQueryResult>;\n}',
+  },
+  {
+    name: 'AlarmQueryRequest',
+    declaration: 'export interface AlarmQueryRequest {\n    readonly severity?: AlarmSeverity;\n    readonly status?: AlarmStatus;\n    readonly source?: string;\n    readonly keyword?: string;\n    readonly since?: string;\n    readonly until?: string;\n    readonly maxAlarms?: number;\n}',
+  },
+  {
+    name: 'AlarmQueryResult',
+    declaration: 'export interface AlarmQueryResult {\n    readonly alarms: readonly Alarm[];\n    readonly total: number;\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'AlarmQuerySpec',
+    declaration: 'export interface AlarmQuerySpec extends Omit<AlarmQueryRequest, \'maxAlarms\'> {\n    readonly maxAlarms: number;\n}',
+  },
+  {
+    name: 'AlarmSeverity',
+    declaration: 'export type AlarmSeverity = \'critical\' | \'high\' | \'medium\' | \'low\';',
+  },
+  {
+    name: 'AlarmStatus',
+    declaration: 'export type AlarmStatus = \'firing\' | \'acknowledged\' | \'resolved\';',
   },
   {
     name: 'ApiKeyRecord',

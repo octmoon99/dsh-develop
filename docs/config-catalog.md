@@ -848,7 +848,7 @@ export interface TemplateVariableRule {
   readonly key?: string
   /** Dot path into the matched tool result's presentation meta. */
   readonly path?: string
-  /** Whether an unresolvable value fails the whole template. */
+  /** Whether an unresolvable value (absent, not empty-string) fails the whole template; an empty string still renders. */
   readonly required?: boolean
   /** Character ceiling; an over-long value fails the whole template. */
   readonly maxLength?: number
@@ -1136,6 +1136,60 @@ export interface Config {
 ```
 
 Source: [`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
+
+<a id="deepseek-aidsh-integration-alarm"></a>
+
+## `@deepseek-ai/dsh-integration-alarm`
+
+```ts config-catalog
+/**
+ * Config for the alarm seam. `provider` pins which registered provider wins;
+ * omitted means auto-select when exactly one usable provider is registered.
+ * Operational overrides must feed this same field rather than introduce a
+ * hidden priority chain.
+ */
+export interface AlarmQueryRuntimeConfig {
+  /** Explicit provider id. Omitted = auto-select when exactly one usable. */
+  readonly provider?: string
+}
+```
+
+Source: [`packages/integration/integration-alarm/src/index.ts:46`](../packages/integration/integration-alarm/src/index.ts)
+
+<a id="deepseek-aidsh-integration-alarm-http"></a>
+
+## `@deepseek-ai/dsh-integration-alarm-http`
+
+Requires: `alarmQuery`
+
+```ts config-catalog
+/**
+ * Plugin config: transport, credential mode, and retry bounds. `auth` states
+ * the deployment's credential reality explicitly: `bearer` resolves the token
+ * per attempt and fails loud when nothing resolves — an anonymous request is
+ * never sent by accident; `anonymous` sends no token at all.
+ */
+export interface Config {
+  /** Base URL of the alarm system; queried at `{baseUrl}/alarms`. */
+  readonly baseUrl: string
+  /** Whether the alarm system requires a bearer token (`bearer`) or none (`anonymous`). */
+  readonly auth: 'bearer' | 'anonymous'
+  /** Literal bearer token; prefer {@link Config.tokenEnv} so config files stay shareable. */
+  readonly token?: string
+  /** Credential-reference name holding the bearer token. */
+  readonly tokenEnv: string
+  /** Per-attempt timeout in milliseconds; bounds token resolution and the request alike. */
+  readonly timeoutMs: number
+  /** Ceiling on the response body in bytes; a body that crosses it fails the attempt. */
+  readonly maxResponseBytes: number
+  /** Retry attempts after the first failed attempt (0 = fail on first failure). */
+  readonly retries: number
+  /** Backoff before the first retry; doubles per attempt. */
+  readonly retryBaseDelayMs: number
+}
+```
+
+Source: [`packages/integration/integration-alarm-http/src/index.ts:45`](../packages/integration/integration-alarm-http/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
@@ -2770,7 +2824,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/system-prompt/src/index.ts:242`](../packages/core/system-prompt/src/index.ts)
+Source: [`packages/core/system-prompt/src/index.ts:243`](../packages/core/system-prompt/src/index.ts)
 
 <a id="deepseek-aidsh-terminal-bash"></a>
 
@@ -2979,6 +3033,26 @@ export interface Config {
 ```
 
 Source: [`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
+
+<a id="deepseek-aidsh-tool-integration-alarm"></a>
+
+## `@deepseek-ai/dsh-tool-integration-alarm`
+
+Requires: `tools` · `alarmQuery` · `systemPrompt`
+
+```ts config-catalog
+/** Model-facing alarm tool configuration. */
+export interface Config {
+  /** Upper bound on returned alarms, applied to every query this deployment runs. */
+  readonly maxAlarms: number
+  /** Cooperative tool-call budget (ms) enforced by the tool-timeout policy. */
+  readonly timeoutMs: number
+  /** Per-alarm `detail` character cap; longer details are cut and flagged `detailTruncated`. */
+  readonly maxDetailChars: number
+}
+```
+
+Source: [`packages/integration/tool-integration-alarm/src/index.ts:50`](../packages/integration/tool-integration-alarm/src/index.ts)
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 

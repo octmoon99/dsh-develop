@@ -1,6 +1,10 @@
 # 飞书数智员工：PR 系列正式计划（修订版 5）
 
+> 2026-09-20 验收说明：
+> - 模拟 A 已以 `dev-fixtures/alarm-system/` 的 FastAPI 实现完成本地查询链路；负责人手工 UAT 已在实际 CLI overlay、实时模型与真实飞书传输下成功。P2-7 的 keyless 证据由 `snapshots/session/alarm-query/` 提供：随附 headless profile 加载真实告警 seam、HTTP Provider 与 `alarm_query`，仅回放模型，工具请求仍穿过操作系统分配端口上的真实 HTTP 监听器，并把工具调用、截断结果、呈现元数据与最终回复写入 Session fixture。FastAPI 的真实 Uvicorn 协议测试、keyless Session 与手工飞书 UAT 分别保留，不互相冒充。P2-8 仍随提交范围整理。
+>
 > 2026-09-18 修订说明：
+> - PR2 整改 P2-1…P2-6 已实施（详情见文末 P2 整改明细的完成标注）：示例拆分为能力 overlay + 飞书组合两份；baseUrl 显式 resolveAlarmBase（http/https、无 query/fragment、尾斜杠归一）；凭据解析纳入按次超时/取消（竞速守卫、落败结果丢弃），退避监听器正常结束即释放；卡片 markdown 单一来源（空态/展示 N of M/截断说明常量共享，飞书侧 required=仅拒 undefined 已澄清）；`maxResponseBytes` 流式字节预算 + 工具 `maxDetailChars` 截断并标记 `detailTruncated`，超限 JSDoc 表述修正；`firedAt` 等时间戳经缝导出的 `isIso8601Timestamp` 校验，鉴权改 `auth: bearer|anonymous` 显式模式（bearer 缺令牌在任何请求前响亮失败）。三包测试 69 项通过（本地 HTTP 服务 + 真实 fetch）。P2-7（模拟 A 载体的四项证据）与 P2-8（随提交处理）待办。
 > - PR1 收口新增 P1-7：审批决策人允许列表支持 user_id——`deciderUserIds` 与 `deciderOpenIds` 并列，分别匹配回调操作者的 `user_id`/`open_id`，任一命中即有资格，两列表均为空仍不认领。`operator.user_id` 为防御性线上字段（缺省即无资格，fail-closed），真实回调是否送达取决于应用权限范围，归 PR0 验证；P1-4 剩余项（`event.token`、`context.open_message_id`、`'warning'`）不变。
 >
 > 2026-09-17 修订说明：
@@ -121,9 +125,9 @@
 
 ## PR2 — integration/alarm-query 专用查询缝（实施中：工作区未提交）
 
-三包已在工作区落地（`packages/integration/`）：`integration-alarm`（Definition，`ctx.alarmQuery`，provider 选择梯 + `ALARM_PROVIDER_*` 封闭码）、`integration-alarm-http`（Provider，Config：baseUrl/credentials 引用/tokenEnv/timeoutMs/retryBaseDelayMs）、`tool-integration-alarm`（Consumer，`alarm_query` 工具 + presentationMeta 超预算降级为 `{}` + truncated 标识）；`apps/cli/config/examples/alarm-query/` 示例已建。此前评审记录：4 个测试文件 51 项测试通过（沙箱外重跑，本次文档修订未重跑）；其中 `http-alarm.spec.ts` 的 24 项测试使用本地 HTTP 服务和真实 fetch，覆盖 Provider 查询、重试、取消、超时与解码等行为。已有 HTTP 路径验证，但实际 CLI 配置、HTTP Provider、会话与飞书渲染的完整组合及 keyless 快照证据仍待补齐（P2-7）。
+三包已在工作区落地（`packages/integration/`）：`integration-alarm`（Definition，`ctx.alarmQuery`，provider 选择梯 + `ALARM_PROVIDER_*` 封闭码）、`integration-alarm-http`（Provider，Config：baseUrl/credentials 引用/tokenEnv/timeoutMs/retryBaseDelayMs）、`tool-integration-alarm`（Consumer，`alarm_query` 工具 + presentationMeta 超预算降级为 `{}` + truncated 标识）；`apps/cli/config/examples/alarm-query/` 示例已建。实际 CLI overlay、HTTP Provider、Session 与真实飞书回复的负责人手工 UAT 已通过；`snapshots/session/alarm-query/` 另以无密钥回放固定模型调用和 Session 结果，并在动态回环端口上保留真实 HTTP 请求。P2-7 的自动化与手工证据分工见文末。
 
-plan2.md 附录「PR2 工作区评审」的问题展开为文末清单 **P2-1…P2-8**；P2-7 按已有 HTTP 测试与尚缺的组合、快照证据分别描述。修复顺序：先 P2-1/P2-2/P2-3/P2-4（配置覆盖、URL 拼接、取消超时、卡片信息表达），再 P2-5/P2-6（结果预算、时间与鉴权策略），最后 P2-7/P2-8（组合与快照验收、提交范围；P2-8 随提交处理）。保留三包分层不变。仍有效的一般检查点：
+plan2.md 附录「PR2 工作区评审」的问题展开为文末清单 **P2-1…P2-8**；P2-7 按已有 HTTP 测试与尚缺的组合、快照证据分别描述。修复顺序：先 P2-1/P2-2/P2-3/P2-4（配置覆盖、URL 拼接、取消超时、卡片信息表达），再 P2-5/P2-6（结果预算、时间与鉴权策略），最后 P2-7/P2-8（组合与快照验收、提交范围；P2-8 随提交处理）。保留三包分层不变。**2026-09-18：P2-1…P2-6 已实施完毕；2026-09-20：P2-7 的自动化证据与负责人手工 UAT 已完成，余 P2-8。**仍有效的一般检查点：
 
 - `{baseUrl}/alarms` 固定 GET 协议在 README 定位为**标准网关协议**，不承诺改 baseUrl 即兼容任意厂家（随 P2-2 一并落实文档定位）
 - 外部 API 新增无关字段是否容忍，由供应商兼容策略决定，不机械等同持久事件 strict 校验（P2-6）
@@ -243,7 +247,7 @@ PR2 为里程碑提供模拟报警查询输入，为 PR4 提供报警卡 Consume
 - **P2-4 飞书卡片遗漏空结果与截断提示（成立，中）**。位置：`packages/integration/tool-integration-alarm/src/index.ts:157-166`（`alarmMarkdown` 只生成列表体，无计数头/截断注记/空态文案，零结果 = 空串）；`apps/cli/config/examples/alarm-query/cordis.yml:66-71`（模板只绑 `meta.markdown`）；对照 `packages/feishu/feishu/src/template.ts:144-146`（required 只拒 `undefined`，空串通过，空卡体照常渲染）。问题：截断时卡片无「展示 N / 总计 M」与截断提示，用户可能把局部结果当全部；meta 的 `total`/`truncated` 未被绑定（Web UI 的 `presentAlarmResult` 反而带 N of M，`tool .../index.ts:318-327`，唯独飞书卡缺信息）。整改：卡片呈现明确表达「暂无报警」「展示 N / 总计 M」「结果已截断，请缩小条件」（保持单一来源，不在两处各写一份）；空串与 required 的语义在飞书模板侧一并明确。验收：经真实模板变量解析与渲染路径验证（不能只验证工具文本）；空结果、截断、超 maxLength 三态均有用例。
 - **P2-5 结果预算没有覆盖完整处理过程（成立，中高）**。位置：`packages/integration/integration-alarm-http/src/provider.ts:163`（`response.text()` 无字节上限，上游无视 limit 时先全量下载+解析再裁剪）；`tool-integration-alarm/src/index.ts:118-129`（`formatAlarmOutput`）与 `:282-299`（execute 返回值）不限单字段长度，超大 detail 全量进工具结果与会话日志；`:177-184`（30k 上限只保 meta，降级为 `{}` 不消除此前的下载/解析/字符串构造开销）；`:131-140` JSDoc「the durable log stays bounded」表述过度。整改：增加可配置的响应字节预算（Config），定义长字段与大结果的截断/拒绝/溢出保存策略；修正 JSDoc。验收：超大单条、超量返回、多字节文本、预算临界值用例；模型输出与卡片都能辨识结果是否完整。
 - **P2-6 时间字段校验与鉴权模式需要明确（成立，低-中）**。位置：`packages/integration/integration-alarm/src/types.ts:31-32`（firedAt 声明 ISO-8601）vs `integration-alarm-http/src/provider.ts:92`（解码只查非空字符串）；`tool-integration-alarm/src/index.ts:67-77`（`Date.parse` 判 since/until，V8 接受大量非 ISO 形式）；`integration-alarm-http/src/index.ts:41-42, 98-105`（token 引用解析不到 → 匿名请求，与「Misconfiguration fails loud」原则相悖）；`provider.ts:77-81, 115-118`（未知字段一概拒绝）。整改：wire 边界与工具输入按声明的时间格式显式校验（ISO-8601 与区间语义）；显式区分匿名模式与必须鉴权模式（后者缺凭据响亮失败且不发出匿名请求）；未知字段拒绝定位为自有网关协议行为，README 不外推为第三方接入必要条件。验收：`not-a-date` 拒绝用例；必须鉴权模式缺凭据不发出请求；文档表述对齐。
-- **P2-7 PR2 验收证据仍需补齐**。`http-alarm.spec.ts` 已有本地 HTTP 服务配合真实 fetch 的 24 项测试；现有 Loader 组合测试使用脚本化 Provider，不能替代实际 HTTP 与 CLI 示例的完整组合。待补：① 模拟报警源的真实 HTTP 协议验证；② 实际 CLI 示例配置组合验证；③ HTTP 结果经会话日志到飞书卡片的链路测试；④ alarm_query 的 keyless 录制会话快照。①②④ 以[本地模拟报警系统](local-http-alarm-provider-plan.md)交付 A 为验证载体（真实 HTTP 协议对端 + CLI 组合 + 快照录制，走真实网络路径）；③ 依赖飞书真实环境。模拟 A 必须先于本项最终验收完成，可与 PR2 整改并行建设。四项证据齐备后 PR2 的模拟级验收方视为完成；真实厂商协议验证另列为实际接入时的交付条件，不以本地模拟通过替代。keyless 快照与真实 HTTP 集成分别保留证据，不将快照回放等同于实时飞书验收，也不将已有 HTTP 测试误写为缺失或 mock fetch。
+- **P2-7 PR2 模拟级验收证据已补齐**。① `dev-fixtures/alarm-system/tests` 通过动态回环端口启动真实 Uvicorn，验证模拟报警源的 REST 协议；② 负责人用实际 `apps/cli/config/examples/alarm-query/cordis.yml` overlay 启动 Web profile 完成组合验证；③ 同一次手工 UAT 使用实时模型与真实飞书传输，确认本地 HTTP 结果经工具和 Session 返回飞书；④ `snapshots/session/alarm-query/` 提交 keyless Session fixture，随附 headless profile 加载真实告警 seam、HTTP Provider 与工具，仅替换模型适配器，HTTP 请求仍到达系统分配端口上的严格测试对端，并固定 `alarm_query` 调用、截断结果、呈现元数据与最终模型轮次。自动化证据不模拟飞书，手工 UAT 不替代可重放 Session，二者也不替代真实厂商的鉴权、字段、限流与可用性验收。
 - **P2-8 提交范围与辅助改动（成立，低，随提交处理）**。位置：`pnpm-lock.yaml`（`@testing-library/dom` 10.4.1→10.4.2 等无关传递漂移）；未跟踪文件中的 `.zcode/plans/plan-sess_*.md`（会话临时文件）、`docs/subsystems/integration.*` 与再生成目录里的存量飞书内容。整改：保留报警能力必需的文档与目录更新，逐项确认其他辅助变更来源；无关依赖漂移独立提交或在 PR 说明中解释；会话临时文件不入库。验收：PR diff 只含报警能力相关改动 + 有来源说明的辅助改动。
 
 ## 参考依据

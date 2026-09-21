@@ -611,6 +611,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Search and fetch providers register into one ctx.web seam; tool-web owns the stable model-facing names.',
   },
   {
+    key: 'alarmQuery',
+    pkg: 'integration-alarm',
+    title: 'Alarm query provider registry',
+    mode: 'seam',
+    implementations: ['integration-alarm-http'],
+    consumers: ['tool-integration-alarm'],
+    note: 'Alarm providers register into one ctx.alarmQuery seam; tool-integration-alarm owns the stable model-facing name.',
+  },
+  {
     key: 'spillStore',
     pkg: 'spill',
     title: 'Spill storage seam',

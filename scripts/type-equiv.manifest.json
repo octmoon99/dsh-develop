@@ -2105,6 +2105,41 @@
       "doc": "packages/client/ui-conversation/README.md",
       "symbol": "ComposerChainProps",
       "source": "packages/client/ui-conversation/src/client/contract/slots.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmQueryRequest",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmQuerySpec",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmQueryResult",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmSeverity",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmStatus",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "Alarm",
+      "source": "packages/integration/integration-alarm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/integration.md",
+      "symbol": "AlarmQueryProvider",
+      "source": "packages/integration/integration-alarm/src/types.ts"
     }
   ]
 }

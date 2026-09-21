@@ -42,6 +42,7 @@
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 9 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
+| `@deepseek-ai/dsh-tool-integration-alarm` | `alarm_query` | `ctx.tools`、`ctx.alarmQuery`、`ctx.systemPrompt` | `tool/call`、`tool/result with presentation meta` | - | alarm_query 是告警缝上的只读过滤查询；部署方拥有结果上限（`maxAlarms`，默认 20，1-100），模型从不决定自己的结果规模。呈现元数据携带结构化告警与显示用 markdown 列表；超过序列化 30,000 字符时降级为 `{}`，回放与通道卡片回退到原始结果内容。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
@@ -2078,6 +2079,61 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
 
+
+<a id="deepseek-aidsh-tool-integration-alarm"></a>
+
+## `@deepseek-ai/dsh-tool-integration-alarm`
+
+### `alarm_query`
+
+Query the connected alarm system. Filters are optional: severity (critical|high|medium|low), status (firing|acknowledged|resolved), source, keyword, and an ISO-8601 since/until window. Returns matching alarms with id, title, severity, status, source, firedAt, and detail, plus the total match count.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "severity": {
+      "type": "string",
+      "description": "Only alarms of this severity.",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": "Only alarms in this lifecycle state.",
+      "enum": [
+        "firing",
+        "acknowledged",
+        "resolved"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "description": "Only alarms from this originating system, service, or metric."
+    },
+    "keyword": {
+      "type": "string",
+      "description": "Free-text match against alarm title and detail."
+    },
+    "since": {
+      "type": "string",
+      "description": "ISO-8601 timestamp; only alarms fired at or after it."
+    },
+    "until": {
+      "type": "string",
+      "description": "ISO-8601 timestamp; only alarms fired before it."
+    }
+  }
+}
+```
+
+Source: [`packages/integration/tool-integration-alarm/src/index.ts`](../packages/integration/tool-integration-alarm/src/index.ts)
+
+alarm_query 是告警缝上的只读过滤查询；部署方拥有结果上限（`maxAlarms`，默认 20，1-100），模型从不决定自己的结果规模。呈现元数据携带结构化告警与显示用 markdown 列表；超过序列化 30,000 字符时降级为 `{}`，回放与通道卡片回退到原始结果内容。
 
 <a id="deepseek-aidsh-tool-todo"></a>
 

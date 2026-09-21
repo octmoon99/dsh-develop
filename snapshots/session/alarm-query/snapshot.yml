@@ -1,0 +1,9 @@
+version: 1
+scenario: alarm-query
+profile: headless
+composition: alarm-query
+recording: authored
+permission: workspace-write
+header:
+  class: alarm-query
+  pin: true

@@ -212,6 +212,12 @@ importers:
       '@deepseek-ai/dsh-http-proxy':
         specifier: workspace:^
         version: link:../../packages/util/http-proxy
+      '@deepseek-ai/dsh-integration-alarm':
+        specifier: workspace:^
+        version: link:../../packages/integration/integration-alarm
+      '@deepseek-ai/dsh-integration-alarm-http':
+        specifier: workspace:^
+        version: link:../../packages/integration/integration-alarm-http
       '@deepseek-ai/dsh-jobs-local':
         specifier: workspace:^
         version: link:../../packages/jobs/jobs-local
@@ -290,6 +296,9 @@ importers:
       '@deepseek-ai/dsh-tool-goal':
         specifier: workspace:^
         version: link:../../packages/goal/tool-goal
+      '@deepseek-ai/dsh-tool-integration-alarm':
+        specifier: workspace:^
+        version: link:../../packages/integration/tool-integration-alarm
       '@deepseek-ai/dsh-tool-jobs':
         specifier: workspace:^
         version: link:../../packages/jobs/tool-jobs
@@ -6834,6 +6843,60 @@ importers:
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
+
+  packages/integration/integration-alarm:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+
+  packages/integration/integration-alarm-http:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-integration-alarm':
+        specifier: workspace:^
+        version: link:../integration-alarm
+      '@deepseek-ai/dsh-launch-environment':
+        specifier: workspace:^
+        version: link:../../util/launch-environment
+
+  packages/integration/tool-integration-alarm:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-integration-alarm':
+        specifier: workspace:^
+        version: link:../integration-alarm
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-util-values':
+        specifier: workspace:^
+        version: link:../../util/values
 
   packages/interaction/commands:
     dependencies:

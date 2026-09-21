@@ -1,0 +1,24 @@
+# Alarm-query composition for a live recording. The fixture keeps the real
+# HTTP provider on a deterministic loopback transport; the base profile owns
+# the live model adapter.
+- insert:
+    - id: alarm
+      name: '@deepseek-ai/dsh-integration-alarm'
+    - id: alarm-query-fixture
+      name: './alarm-query-fixture-server.mjs'
+    - id: alarm-http
+      name: '@deepseek-ai/dsh-integration-alarm-http'
+      config:
+        baseUrl: http://127.0.0.1:43119/
+        auth: bearer
+        token: snapshot-read-token
+        timeoutMs: 10000
+        maxResponseBytes: 1048576
+        retries: 0
+        retryBaseDelayMs: 100
+    - id: alarm-tool
+      name: '@deepseek-ai/dsh-tool-integration-alarm'
+      config:
+        maxAlarms: 1
+        timeoutMs: 30000
+        maxDetailChars: 2000

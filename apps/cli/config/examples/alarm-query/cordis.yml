@@ -1,0 +1,33 @@
+# Alarm query capability overlay: mounts the alarm seam, its HTTP provider,
+# and the model-facing alarm_query tool over any profile. It never patches an
+# existing plugin row, so whatever the loaded composition already configured
+# (feishu-bot chat policies, permission presets, card templates, …) is left
+# untouched. Set DSH_ALARM_BASE_URL and the DSH_ALARM_API_TOKEN credential
+# (e.g. in ~/.dsh/.credentials.yaml) before use; the default auth mode is
+# bearer, which fails loud when no token resolves instead of sending an
+# anonymous request.
+#
+#   pnpm dsh web --patch apps/cli/config/examples/alarm-query/cordis.yml
+#
+# For a Feishu composition that also binds an alarm card template, see the
+# alarm-query-feishu example; do not copy its feishu-bot row over a deployed
+# instance — merge it with the instance's own settings instead.
+
+- insert:
+    - id: alarm
+      name: '@deepseek-ai/dsh-integration-alarm'
+    - id: alarm-http
+      name: '@deepseek-ai/dsh-integration-alarm-http'
+      config:
+        baseUrl: !!js process.env.DSH_ALARM_BASE_URL ?? 'http://127.0.0.1:8080'
+        tokenEnv: DSH_ALARM_API_TOKEN
+        timeoutMs: 10000
+        maxResponseBytes: 1048576
+        retries: 2
+        retryBaseDelayMs: 400
+    - id: alarm-tool
+      name: '@deepseek-ai/dsh-tool-integration-alarm'
+      config:
+        maxAlarms: 20
+        timeoutMs: 30000
+        maxDetailChars: 2000

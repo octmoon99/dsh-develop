@@ -34,6 +34,9 @@ python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/
 python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/
+dev-fixtures/**/__pycache__/
+dev-fixtures/**/.pytest_cache/
+.zcode/plans/plan-sess_*.md
 apps/web/dist/
 .artifacts/
 .dsh-build/

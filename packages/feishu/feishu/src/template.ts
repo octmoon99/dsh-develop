@@ -12,7 +12,7 @@ export interface TemplateVariableRule {
   readonly key?: string
   /** Dot path into the matched tool result's presentation meta. */
   readonly path?: string
-  /** Whether an unresolvable value fails the whole template. */
+  /** Whether an unresolvable value (absent, not empty-string) fails the whole template; an empty string still renders. */
   readonly required?: boolean
   /** Character ceiling; an over-long value fails the whole template. */
   readonly maxLength?: number

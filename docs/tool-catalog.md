@@ -38,6 +38,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
+| `@deepseek-ai/dsh-tool-integration-alarm` | `alarm_query` | `ctx.tools`, `ctx.alarmQuery`, `ctx.systemPrompt` | `tool/call`, `tool/result with presentation meta` | - | alarm_query is a read-only filter query over the alarm seam; the deployment owns the result bound (`maxAlarms`, default 20, 1-100) and the model never sizes its own results. Presentation meta carries the structured alarms and a display-ready markdown list; over 30,000 serialized characters it degrades to `{}` so replay and transport cards fall back to the raw result content. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
@@ -2071,6 +2072,61 @@ Wait for the next teammate status, mailbox, or shared-task change after this cal
 Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
+
+<a id="deepseek-aidsh-tool-integration-alarm"></a>
+
+## `@deepseek-ai/dsh-tool-integration-alarm`
+
+### `alarm_query`
+
+Query the connected alarm system. Filters are optional: severity (critical|high|medium|low), status (firing|acknowledged|resolved), source, keyword, and an ISO-8601 since/until window. Returns matching alarms with id, title, severity, status, source, firedAt, and detail, plus the total match count.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "severity": {
+      "type": "string",
+      "description": "Only alarms of this severity.",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": "Only alarms in this lifecycle state.",
+      "enum": [
+        "firing",
+        "acknowledged",
+        "resolved"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "description": "Only alarms from this originating system, service, or metric."
+    },
+    "keyword": {
+      "type": "string",
+      "description": "Free-text match against alarm title and detail."
+    },
+    "since": {
+      "type": "string",
+      "description": "ISO-8601 timestamp; only alarms fired at or after it."
+    },
+    "until": {
+      "type": "string",
+      "description": "ISO-8601 timestamp; only alarms fired before it."
+    }
+  }
+}
+```
+
+Source: [`packages/integration/tool-integration-alarm/src/index.ts`](../packages/integration/tool-integration-alarm/src/index.ts)
+
+alarm_query is a read-only filter query over the alarm seam; the deployment owns the result bound (`maxAlarms`, default 20, 1-100) and the model never sizes its own results. Presentation meta carries the structured alarms and a display-ready markdown list; over 30,000 serialized characters it degrades to `{}` so replay and transport cards fall back to the raw result content.
 
 <a id="deepseek-aidsh-tool-todo"></a>
 
