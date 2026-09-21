@@ -152,7 +152,7 @@ const OUTCOME_LABELS: Record<string, string> = {
 
 /**
  * Build one settled card replacing a pending interaction card.
- * @param outcomeLabel - the human-readable outcome already resolved for the interaction.
+ * @param outcome - the resolved outcome code, mapped to a display label when known.
  * @param decidedBy - the deciding operator's open id, when a callback carried it.
  * @param summary - the answers summary of a settled form, when present.
  * @param frame - the configured settled-style frame with `{{outcome}}`/`{{decidedBy}}`/`{{summary}}` placeholders.

@@ -735,6 +735,169 @@ export interface Config {
 
 Source: [`packages/experimental/tool-agent-team/src/index.ts:17`](../packages/experimental/tool-agent-team/src/index.ts)
 
+<a id="deepseek-aidsh-feishu"></a>
+
+## `@deepseek-ai/dsh-feishu`
+
+Requires: `agents` · `agentPresets` · `agentDefaultModel` · `permissionPresets` · `workspaceRegistry` · `sessionTitle` · `sessionPersistence` · `credentials` · `attachments`
+
+```ts config-catalog
+/** Full plugin configuration: the settings section plus deployment-only fields. */
+export interface Config extends FeishuSettings {
+  /** Existing local directory sessions work in. */
+  readonly workspacePath: string
+  /** Agent composition mounted for each chat session. */
+  readonly agentPreset: string
+  /** Sandbox and approval preset applied to each chat session. */
+  readonly permissionPreset: string
+}
+
+/** Fields editable through the settings surface and hot-applied on change. */
+export interface FeishuSettings {
+  /** Ingress transport: outbound WSS long connection or inbound webhook route. */
+  readonly transport: FeishuTransport
+  /**
+   * Open-platform domain: the `feishu` or `lark` shorthand, or a
+   * self-hosted deployment's complete API origin (`https://…/open-apis` host).
+   */
+  readonly domain: string
+  /** Literal app id; prefer {@link FeishuSettings.appIdEnv} so configuration files stay shareable. */
+  readonly appId?: string
+  /** Credential reference resolved for the app id. */
+  readonly appIdEnv: string
+  /** Literal app secret; prefer {@link FeishuSettings.appSecretEnv} so no secret enters configuration files. */
+  readonly appSecret?: string
+  /** Credential reference resolved for the app secret. */
+  readonly appSecretEnv: string
+  /** Credential reference resolved for the webhook verification token (webhook transport). */
+  readonly verificationTokenEnv: string
+  /** Credential reference resolved for the webhook encrypt key (webhook transport). */
+  readonly encryptKeyEnv: string
+  /** Absolute route path the webhook transport registers. */
+  readonly path: string
+  /** Positive raw body ceiling in bytes (webhook transport). */
+  readonly maxBodyBytes: number
+  /** Chats the bot answers; empty answers every chat that reaches it. */
+  readonly allowChatIds: string[]
+  /** In groups, answer only messages whose mention list is non-empty. */
+  readonly groupRequireMention: boolean
+  /** Open one topic per main-stream message and answer inside it; topic messages always continue their topic. */
+  readonly replyInThread: boolean
+  /** Reply texts longer than this are truncated with an ellipsis marker. */
+  readonly replyCharLimit: number
+  /** Form settled replies take: plain text or a single markdown card. */
+  readonly replyForm: ReplyForm
+  /** Card header title when {@link FeishuSettings.replyForm} is `card`. */
+  readonly cardTitle: string
+  /** Builder multilingual key lifted to `elements`/`header` when a template card is a builder export. */
+  readonly cardLocale: string
+  /** Emoji key bracketing admitted turns as the thinking indicator; empty disables the indicator. */
+  readonly thinkingEmoji: string
+  /** Text replied when message processing fails before a reply exists. */
+  readonly failureNotice: string
+  /** Maximum remembered message identities for retry deduplication. */
+  readonly dedupCapacity: number
+  /** Card templates bound to the tool turns whose replies render them. */
+  readonly cardTemplates: CardTemplateEntry[]
+  /** Interactive approval and question cards, their callbacks, and their settled refreshes. */
+  readonly interactionCards: InteractionCardsSettings
+}
+
+/** Chat channel the bot listens on, selected at edge start. */
+export type FeishuTransport = 'websocket' | 'webhook'
+
+/** Reply form one settled turn takes: plain text, a single markdown card, or per-turn classification. */
+export type ReplyForm = 'text' | 'card' | 'auto'
+
+/** One registered card template and the tool turn it binds to. */
+export interface CardTemplateEntry {
+  /** Registry name, unique within the section. */
+  readonly name: string
+  /** Tool name whose call in the turn selects this template. */
+  readonly bindTool: string
+  /** Optional secondary filter on the workflow run's display name. */
+  readonly workflowName?: string
+  /** Platform template identity from the tenant's card builder. */
+  readonly templateId?: string
+  /**
+   * Local card document carrying `{{variable}}` placeholders in string values:
+   * canonical card JSON 1.0 (top-level `elements`) or the card builder's
+   * multilingual export (`i18n_elements`/`i18n_header`, lifted from
+   * `cardLocale` at render).
+   */
+  readonly card?: unknown
+  /** Extraction rules keyed by template variable name. */
+  readonly variables: Record<string, TemplateVariableRule>
+}
+
+/** Interactive cards answering in-turn approval and user-question requests. */
+export interface InteractionCardsSettings {
+  /** Whether the bridge claims those requests with cards; disabled passes them to other channels. */
+  readonly enabled: boolean
+  /** Approval confirm card knobs. */
+  readonly approval: ApprovalCardsSettings
+  /** Ask-user form card knobs. */
+  readonly question: QuestionCardsSettings
+}
+
+/** One template slot's extraction rule. */
+export interface TemplateVariableRule {
+  /** Extraction source: a fixed message fact or the matched tool result's presentation meta. */
+  readonly from: 'context' | 'tool-result'
+  /** Context fact name: `chatId`, `senderOpenId`, or `threadId`. */
+  readonly key?: string
+  /** Dot path into the matched tool result's presentation meta. */
+  readonly path?: string
+  /** Whether an unresolvable value fails the whole template. */
+  readonly required?: boolean
+  /** Character ceiling; an over-long value fails the whole template. */
+  readonly maxLength?: number
+}
+
+/** Style knobs of the interactive approval confirm cards. */
+export interface ApprovalCardsSettings {
+  /**
+   * Open ids allowed to decide an approval card, matched against the
+   * callback operator's `open_id`. A click matching neither decider list
+   * answers with an error toast and leaves the pending interaction
+   * claimable. Both lists empty (default) admit no decider, so approval
+   * requests pass to other channels.
+   */
+  readonly deciderOpenIds: string[]
+  /**
+   * User ids allowed to decide an approval card, matched against the
+   * callback operator's `user_id`. Whether the platform delivers that field
+   * depends on the app's granted scope; its absence leaves the click to the
+   * open-id list, and this list alone still admits deciders when populated.
+   */
+  readonly deciderUserIds: string[]
+  /** Local card JSON 1.0 frame carrying `{{toolName}}`/`{{reason}}` placeholders; the button row is appended. */
+  readonly pendingCard?: unknown
+  /** Local card JSON 1.0 frame carrying `{{outcome}}`/`{{decidedBy}}` placeholders for the callback refresh. */
+  readonly settledCard?: unknown
+  /** Platform template the callback refresh updates the card with, instead of a local settled frame. */
+  readonly settledTemplateId?: string
+  /** Approve button label. */
+  readonly approveLabel: string
+  /** Reject button label. */
+  readonly rejectLabel: string
+}
+
+/** Style knobs of the interactive ask-user form cards. */
+export interface QuestionCardsSettings {
+  /** Form card header title. */
+  readonly title: string
+  /** Form submit button label. */
+  readonly submitLabel: string
+  /** Local card JSON 1.0 frame carrying `{{outcome}}`/`{{decidedBy}}`/`{{summary}}` placeholders for the callback refresh. */
+  readonly settledCard?: unknown
+  /** Platform template the callback refresh updates the card with, instead of a local settled frame. */
+  readonly settledTemplateId?: string
+}
+```
+
+Source: [`packages/feishu/feishu/src/config.ts:123`](../packages/feishu/feishu/src/config.ts)
+
 <a id="deepseek-aidsh-file-reference-local"></a>
 
 ## `@deepseek-ai/dsh-file-reference-local`

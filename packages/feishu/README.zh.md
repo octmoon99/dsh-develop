@@ -17,5 +17,6 @@ Feishu 家族把飞书机器人接入 harness：聊天事件经外拨 WSS 长连
 
 ## 相关文档
 
+- [Session 子系统](../../docs/subsystems/session.zh.md) — 每个飞书聊天会话使用的规范日志与回放模型
 - [飞书机器人 overlay 示例](../../apps/cli/config/examples/feishu-bot/cordis.yml)
 - [Webhook 运行时](../webhook/) — 本插件刻意不复用的 fire-and-forget 事件家族

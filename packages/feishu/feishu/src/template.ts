@@ -154,7 +154,12 @@ export function resolveTemplateVariables(
   return { variables }
 }
 
-/** Substitute `{{name}}` placeholders inside one local card's string values. */
+/**
+ * Substitute `{{name}}` placeholders inside one local card's string values.
+ * @param card - the local card value to traverse without mutation.
+ * @param variables - replacement text keyed by placeholder name.
+ * @returns a recursively copied value with every string placeholder substituted.
+ */
 export function interpolateCard(card: unknown, variables: Record<string, string>): unknown {
   if (typeof card === 'string') {
     return card.replace(/\{\{(\w+)\}\}/g, (_whole, name: string) => variables[name] ?? '')

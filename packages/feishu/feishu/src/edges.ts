@@ -227,6 +227,7 @@ class WebhookHttpError extends Error {
  * @param ctx - plugin context carrying the WebServer.
  * @param sdk - the Lark SDK construction surface.
  * @param settings - the currently authoritative settings section.
+ * @param webServer - optional registrar required by webhook transport.
  * @param router - the conversation router events feed into.
  * @returns the edge; stop unregisters the route.
  * @throws when webhook credentials cannot be resolved.

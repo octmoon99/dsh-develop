@@ -17,5 +17,6 @@ The Feishu family connects a Feishu (Lark) bot to the harness: chat events arriv
 
 ## Related documentation
 
+- [Session subsystem](../../docs/subsystems/session.md) — the canonical log and replay model each Feishu chat session uses
 - [Feishu bot overlay example](../../apps/cli/config/examples/feishu-bot/cordis.yml)
 - [Webhook runtime](../webhook/) — the fire-and-forget event family this plugin deliberately does not reuse

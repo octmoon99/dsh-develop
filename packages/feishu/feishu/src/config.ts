@@ -205,7 +205,11 @@ export const Config: z<Config> = z.object({
   permissionPreset: z.string().default('read-only'),
 })
 
-/** Project one full configuration into its settings-section subset. */
+/**
+ * Project one full configuration into its settings-section subset.
+ * @param config - the resolved full plugin configuration.
+ * @returns the UI-editable settings fields from the configuration.
+ */
 export function settingsEntryOf(config: Config): FeishuSettings {
   return {
     transport: config.transport,
@@ -335,7 +339,11 @@ export function credentialRefsOf(settings: FeishuSettings): readonly string[] {
   return [settings.appIdEnv, settings.appSecretEnv, settings.verificationTokenEnv, settings.encryptKeyEnv]
 }
 
-/** Validate composition-only facts Schemastery cannot express. */
+/**
+ * Validate composition-only facts Schemastery cannot express.
+ * @param config - the resolved full plugin configuration.
+ * @throws when a settings invariant fails or `workspacePath` is blank.
+ */
 export function assertConfig(config: Config): void {
   assertSettings(config)
   if (config.workspacePath.trim() === '') {

@@ -135,7 +135,10 @@ export class InteractionBridge {
     this.anchors.set(sessionId, messageId)
   }
 
-  /** Forget one session's anchor; its turn settled. */
+  /**
+   * Forget one session's anchor after its turn settles.
+   * @param sessionId - the settled session whose anchor is removed.
+   */
   clearAnchor(sessionId: SessionId): void {
     this.anchors.delete(sessionId)
   }
